@@ -71,7 +71,7 @@ def transition_model(corpus, page, damping_factor):
         for p in corpus:
             probs[p] = probs[p] + damping_factor / len(corpus)
     # Otherwise, the damping factor is distributed evenly (among the pages being linked to) 
-    # and added to the minimum probability assigned at the beginning of the functiin
+    # and added to the minimum probability assigned at the beginning of the function
     else:
         for p in linkedPages:
             probs[p] = probs[p] + damping_factor / len(linkedPages)
@@ -79,7 +79,7 @@ def transition_model(corpus, page, damping_factor):
 
 def get_random_page(probs):
     # generate a random number between 1 - 100
-    rand_num = math.floor(random.random() * 100 + 1)
+    rand_num = math.floor(random.random() * 100) + 1
     sum = 0
     # iterate through all the probabilites and sum them. 
     # The random page will be the one where the random number falls in the range of the prev sum + the next probability in the distributioin
@@ -87,8 +87,7 @@ def get_random_page(probs):
         sum += (probs[page] * 100)
         if rand_num <= sum:
             return page
-    
-    return None
+    return list(probs.keys())[-1]
 
 def remove_suffix(input_string, suffix):
     if suffix and input_string.endswith(suffix):
@@ -110,7 +109,12 @@ def sample_pagerank(corpus, damping_factor, n):
         probs[page] = 0
     num_pages = len(corpus)
     # randomly generate the first page
-    curr_page = str(math.floor(random.random() * num_pages) + 1) + ".html"
+    curr_page = math.floor(random.random() * num_pages) + 1
+    num_pages = 1
+    for page in corpus:
+        if num_pages == curr_page:
+            curr_page = page
+        num_pages += 1
     probs[curr_page] = 1
 
     # run for n -1 remaining samples
@@ -125,34 +129,6 @@ def sample_pagerank(corpus, damping_factor, n):
     
     return probs
 
-def num_links(corpus, page):
-    return len(corpus[page]) if len(corpus[page]) > 0 else len(corpus)
-
-def get_pages_linking_to(corpus):
-    """
-    Returns a dictionary where the keys are the pages in the corpus
-    and the values are sets of the pages linking to it.
-    If a page has no other pages linking to it, then all the pages 
-    will be added to the set as linking to it
-    """
-
-    pages = dict()
-    # initialize sets
-    for page in corpus:
-        pages[page] = set()
-    
-    for page in corpus:
-        linked = corpus[page]
-        for link in linked:
-            pages[link].add(page)
-    
-    for page in pages:
-        # if no linking pages, add all the pages as linking pages
-        if len(pages[page]) == 0:
-            for link in corpus:
-                pages[page].add(link)
-
-    return pages
 
 def iterate_pagerank(corpus, damping_factor):
     """
@@ -163,32 +139,34 @@ def iterate_pagerank(corpus, damping_factor):
     their estimated PageRank value (a value between 0 and 1). All
     PageRank values should sum to 1.
     """
-    pr = dict()
-    links_dict = get_pages_linking_to(corpus)
-    # diff is a flaf used to terminate the loop when the difference in no longer greater than 0.001
+    iterate_pr = dict()
+    # diff is a flag used to terminate the loop when the difference in no longer greater than 0.001
     diff = True
 
     # initially, all pages take equal probability
     for page in corpus:
-        pr[page] = 1 / len(corpus)
+        iterate_pr[page] = 1 / len(corpus)
     
     while diff is True:
         diff = False
-        for page in corpus:
+        prev_pr = iterate_pr.copy()
+        for page in iterate_pr:
             # left hand side of the iteration formula
-            new_pr = (1 - damping_factor) / len(corpus)
-            links = links_dict[page]
+            new_pr = ((1 - damping_factor) / len(corpus))
+            parents = [link for link in corpus if page in corpus[link]]
             summation = 0
 
             # summation part of the iteration formula
-            for link in links:
-                summation += (pr[link] / num_links(corpus, link))
+            for parent in parents:
+                summation = summation + (prev_pr[parent] / len(corpus[parent]))
             #right hand side of the iteration formula
-            new_pr += (damping_factor * summation)
-            if -0.001 > new_pr - pr[page] or  new_pr - pr[page] > 0.001:
+            new_pr = new_pr + (damping_factor * summation)
+            if abs(new_pr - prev_pr[page]) > 0.001:
                 diff = True
-            pr[page] = new_pr
-    return pr
+            iterate_pr[page] = new_pr
+    dictsum = (sum(iterate_pr.values()))
+    iterate_pr = {key: value/dictsum for key, value in iterate_pr.items()}
+    return iterate_pr
 
 
 if __name__ == "__main__":
